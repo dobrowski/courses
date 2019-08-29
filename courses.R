@@ -10,7 +10,13 @@ library(here)
 
 # Both files from https://www.cde.ca.gov/ds/sd/df/filesassign.asp
 assignments <- read_xlsx(here("data", "AssignmentCodes12On.xlsx"))
-coursestaught <- read_tsv(here("data", "CoursesTaught17.txt"))
+coursestaught <- read_tsv(here("data", "CoursesTaught17.txt"), col_types = "ccccccccccccccccccc" ) %>%
+    filter(AcademicYear == "1")
+
+for (i in 12:17) {
+    year <- read_tsv(here("data", paste0("CoursesTaught",i,".txt")), col_types = "ccccccccccccccccccc"  )
+    coursestaught <- bind_rows(coursestaught, year)
+}
 
 
 
@@ -20,8 +26,14 @@ cs.courses <- assignments %>%
 coursestaught.mry <- coursestaught %>% 
     filter(str_detect(CountyName,"MONTEREY"),
            CourseCode %in% cs.courses$AssignmentCode) %>%
-    mutate(CourseCode = as.character(CourseCode)) %>%
+#    mutate(CourseCode = as.character(CourseCode)) %>%
     left_join(assignments, by = c("CourseCode" = "AssignmentCode"))
 
 
 write_csv(coursestaught.mry, "CS Courses in 17-18.csv")
+
+
+
+
+ddi <- read_ipums_ddi("usa_00001.xml")
+data <- read_ipums_micro(ddi)
