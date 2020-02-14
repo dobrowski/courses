@@ -13,11 +13,14 @@ assignments <- read_xlsx(here("data", "AssignmentCodes12On.xlsx"))
 coursestaught <- read_tsv(here("data", "CoursesTaught17.txt"), col_types = "ccccccccccccccccccc" ) %>%
     filter(AcademicYear == "1")
 
-for (i in 12:17) {
+for (i in 12:18) {
     year <- read_tsv(here("data", paste0("CoursesTaught",i,".txt")), col_types = "ccccccccccccccccccc"  )
     coursestaught <- bind_rows(coursestaught, year)
 }
 
+coursestaught <- coursestaught %>%
+    filter(str_detect(CountyName,"MONTEREY")) %>%
+    left_join(assignments, by = c("CourseCode" = "AssignmentCode"))
 
 
 # cs.courses <- assignments %>%
@@ -28,11 +31,21 @@ cs.courses <- read_xlsx(here("data", "Rodlist.xlsx"), col_names = FALSE) %>%
     transmute(AssignmentCode = `...1`,
               CourseName = `...2`)
 
+art <- assignments %>% 
+    filter(str_detect(AssignmentSubject,"Art|Dance|Drama|Fashion|Music") | AssignmentCode %in% c(4605, 4606,4607,4635,2455)  ) %>%
+    filter(!str_detect(AssignmentSubject,"English"))
+
+
+
+# art programs, theater/dance, music, dance, fashion and interior design, arts media and entertainment as well as 
+# 4605, 4606,4607,4617, 4635 & 2455
+
 
 
 coursestaught.mry <- coursestaught %>% 
     filter(str_detect(CountyName,"MONTEREY"),
-           CourseCode %in% cs.courses$AssignmentCode) %>%
+           CourseCode %in% art$AssignmentCode,
+           AcademicYear == "1819") %>%
 #    mutate(CourseCode = as.character(CourseCode)) %>%
     left_join(assignments, by = c("CourseCode" = "AssignmentCode"))
 
@@ -42,14 +55,14 @@ coursestaught.mry <- coursestaught %>%
 
 
 summary <- coursestaught.mry %>%
-    group_by(DistrictName,AcademicYear) %>%
-    mutate(enrolled = sum(as.numeric(Enrollment)) ,
-           n = n()) %>%
-    select(DistrictName, AcademicYear, enrolled, n) %>%
+    group_by(DistrictName, SchoolName, AcademicYear) %>%
+    mutate(NumberEnrolled = sum(as.numeric(Enrollment)) ,
+           NumberCourses = n()) %>%
+    select(DistrictName, SchoolName, AcademicYear, NumberEnrolled, NumberCourses) %>%
     distinct() %>%
     arrange(DistrictName, AcademicYear)
 
-write_csv(summary, "CS Courses by District by Year.csv")
+write_csv(summary, "Art Courses by District by Year.csv")
 
 # 
 # summary <- coursestaught.mry %>%
@@ -60,8 +73,16 @@ write_csv(summary, "CS Courses by District by Year.csv")
 
 
 
+courses.summary <- function(courselist) {
+    
+    coursestaught %>% 
+        filter(CourseCode %in% courselist)  %>%
+        group_by(DistrictName, SchoolName, AcademicYear) %>%
+        mutate(NumberEnrolled = sum(as.numeric(Enrollment)) ,
+               NumberCourses = n()) %>%
+        select(DistrictName, SchoolName, AcademicYear, NumberEnrolled, NumberCourses) %>%
+        distinct() %>%
+        arrange(DistrictName, SchoolName ,AcademicYear)
+}
 
-
-library(ipumsr)
-ddi <- read_ipums_ddi("usa_00001.xml")
-data <- read_ipums_micro(ddi)
+courses.summary(art$AssignmentCode)
